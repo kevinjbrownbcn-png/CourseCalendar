@@ -39,7 +39,7 @@ with tab1:
 
     # Render a beautiful, interactive data table
     st.dataframe(
-        calendar_df.style.applymap(color_mode, subset=['Mode']),
+        calendar_df.style.map(color_mode, subset=['Mode']),
         use_container_width=True,
         hide_index=True
     )
