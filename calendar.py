@@ -8,7 +8,7 @@ st.title("📅 Course Schedule & Directory")
 # 1. Fetch your Google Sheet data
 # Replace with your actual Sheet ID and Sheet Name
 SHEET_ID = "15nhId0BxuKaO_6fhjccMuM8PvrSPy0mi4t6GWVaNvNc"
-SHEET_NAME = "July 2026"
+SHEET_NAME = "July2026"
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
 @st.cache_data(ttl=600) # Caches data for 10 minutes so it's lightning fast
