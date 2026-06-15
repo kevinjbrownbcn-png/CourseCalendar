@@ -25,49 +25,38 @@ tab1, tab2 = st.tabs(["🗓️ Calendar View", "🔍 Course Directory"])
 with tab1:
     st.subheader("🗓️ Course Schedule")
 
-    # 1. Display the Color-Coded Legend above the calendar
+    # 1. Legend
     st.markdown("#### Mode Legend")
     col_leg1, col_leg2, col_leg3 = st.columns(3)
-    with col_leg1:
-        st.markdown("🔵 **Online**")
-    with col_leg2:
-        st.markdown("🟢 **Presencial**")
-    with col_leg3:
-        st.markdown("🟡 **Self-Paced**")
-    st.write("") # Spacer
+    with col_leg1: st.markdown("🔵 **Online**")
+    with col_leg2: st.markdown("🟢 **Presencial**")
+    with col_leg3: st.markdown("🟡 **Self-Paced**")
+    st.write("") 
 
-    # 2. Map Modes to beautiful Hex Colors (Background & Text)
+    # Colors mapping
     color_map = {
-        "Online": {"bg": "#1e3a8a", "text": "#ffffff"},      # Deep Blue
-        "Presencial": {"bg": "#065f46", "text": "#ffffff"},  # Deep Green
-        "Self-Paced": {"bg": "#b45309", "text": "#ffffff"}   # Warm Amber
+        "Online": {"bg": "#1e3a8a", "text": "#ffffff"},
+        "Presencial": {"bg": "#065f46", "text": "#ffffff"},
+        "Self-Paced": {"bg": "#b45309", "text": "#ffffff"}
     }
 
-    # 3. Transform the Google Sheet data into FullCalendar Event objects
+    # 2. Build Events List & embed extended properties for the click handler
     calendar_events = []
-    
     for idx, row in df.iterrows():
-        # Skip if there's no valid date
         if pd.isna(row['Date']):
             continue
-            
-        # Clean up date format (Ensure it's YYYY-MM-DD string)
         try:
             date_str = pd.to_datetime(row['Date']).strftime('%Y-%m-%d')
         except:
-            continue # Skip row if date is unparseable
+            continue
 
-        # Construct the layout inside the visual 'pill'
-        # e.g., "Python Basics | 14:00 | Room 4B" or just "SQL Intro | 10:00"
         time_info = f" | {row['Time']}" if pd.notna(row['Time']) else ""
         loc_info = f" @ {row['Location']}" if (pd.notna(row['Location']) and str(row['Location']).strip().lower() != 'nan') else ""
         pill_title = f"{row['Course']}{time_info}{loc_info}"
 
-        # Determine pill coloring based on the course mode
         mode = row['Mode'] if pd.notna(row['Mode']) else "Online"
         colors = color_map.get(mode, {"bg": "#374151", "text": "#ffffff"})
 
-        # Build the event dictionary structure expected by FullCalendar
         event = {
             "title": pill_title,
             "start": date_str,
@@ -75,11 +64,20 @@ with tab1:
             "backgroundColor": colors["bg"],
             "textColor": colors["text"],
             "borderColor": colors["bg"],
-            "allDay": True # Keeps it neatly displayed as a banner row/pill across the day cell
+            "allDay": True,
+            # We pass extra details inside 'extendedProps' to capture them on click
+            "extendedProps": {
+                "course_name": str(row['Course']),
+                "time": str(row['Time']) if pd.notna(row['Time']) else "N/A",
+                "location": str(row['Location']) if pd.notna(row['Location']) else "N/A",
+                "mode": mode,
+                "link": str(row['Link']) if pd.notna(row['Link']) else "",
+                "registered": str(row['Registered?']) if pd.notna(row['Registered?']) else "No",
+                "reg_open": str(row['Registration Open']) if pd.notna(row['Registration Open']) else "N/A"
+            }
         }
         calendar_events.append(event)
 
-    # 4. Configure Calendar Options
     calendar_options = {
         "headerToolbar": {
             "left": "today prev,next",
@@ -88,26 +86,46 @@ with tab1:
         },
         "initialView": "dayGridMonth",
         "selectable": True,
-        "editable": False
     }
 
-    # 5. Inject custom styling to make sure pills look modern and sleek
     custom_css = """
-        .fc-event {
-            padding: 4px 6px;
-            font-size: 0.85rem !important;
-            border-radius: 6px !important;
-            font-weight: 500 !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+        .fc-event { padding: 4px 6px; font-size: 0.85rem !important; border-radius: 6px !important; cursor: pointer; }
     """
 
-    # 6. Render the Component
-    calendar(
+    # 3. Render calendar component and catch its return state
+    state = calendar(
         events=calendar_events,
         options=calendar_options,
-        custom_css=custom_css
+        custom_css=custom_css,
+        key="interactive_calendar" # Fixed key preserves component state
     )
+
+    # 4. The Interactivity Layer: Catch the click event details
+    # When a user clicks a pill, state['eventClick'] populates dynamically
+    if state and "eventClick" in state:
+        event_data = state["eventClick"]["event"]
+        props = event_data.get("extendedProps", {})
+
+        st.write("---")
+        # Generate a clean inspection panel for the clicked item
+        with st.container(border=True):
+            st.markdown(f"### 🔍 Session Details: **{props.get('course_name')}**")
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown(f"**⏰ Time:** {props.get('time')}")
+                st.markdown(f"**📍 Location:** {props.get('location')}")
+            with c2:
+                st.markdown(f"**💻 Mode:** `{props.get('mode')}`")
+                st.markdown(f"**📝 Registration Status:** {props.get('reg_open')}")
+            with c3:
+                st.markdown(f"**✅ Registered?:** {props.get('registered')}")
+                # Render a clickable primary button if a valid registration hyperlink exists
+                link_url = props.get('link')
+                if link_url and link_url.startswith("http"):
+                    st.link_button("🔗 Open Registration Link", link_url, use_container_width=True)
+                else:
+                    st.caption("No link available for this session.")
 # --- TAB 2: EXPANDABLE PANEL SUMMARY ---
 with tab2:
     st.subheader("Courses Grouped by Name")
